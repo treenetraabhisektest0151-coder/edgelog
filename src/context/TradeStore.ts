@@ -34,7 +34,8 @@ interface Store {
   filtered:     () => Trade[]
 
   // trades CRUD
-  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'|'profitLoss'|'pips'|'riskReward'|'status'>, uid: string) => Promise<string>
+  // ✅ FIXED: removed status/profitLoss/pips/riskReward from Omit so manual values are accepted
+  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'>, uid: string) => Promise<string>
   updateTrade:  (id: string, data: Partial<Trade>) => Promise<void>
   deleteTrade:  (id: string) => Promise<void>
   uploadImage:  (tradeId: string, file: File, type: ImageType, uid: string) => Promise<string>
@@ -97,10 +98,12 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   addTrade: async (data, uid) => {
-    const pnl    = calcPnL(data)
-    const pips   = calcPips(data)
-    const rr     = calcRR(data)
-    const status = data.exitPrice ? tradeStatus({ ...data, profitLoss: pnl }) : 'OPEN'
+    // ✅ FIXED: respect manual values, only auto-calc if not provided
+    const pnl    = data.profitLoss  || calcPnL(data)
+    const pips   = data.pips        || calcPips(data)
+    const rr     = data.riskReward  || calcRR(data)
+    // ✅ FIXED: respect manually selected status
+    const status = data.status      || (data.exitPrice ? tradeStatus({ ...data, profitLoss: pnl }) : 'OPEN')
     const ref2   = await addDoc(collection(db, 'trades'), {
       ...data, userId: uid, profitLoss: pnl, pips, riskReward: rr, status,
       createdAt: new Date().toISOString(),
