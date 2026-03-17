@@ -31,7 +31,7 @@ interface Store {
   clearFilters: () => void
   filtered:     () => Trade[]
 
-  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'|'profitLoss'|'pips'|'riskReward'|'status'>, uid: string) => Promise<string>
+  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'>, uid: string) => Promise<string>
   updateTrade:  (id: string, data: Partial<Trade>) => Promise<void>
   deleteTrade:  (id: string) => Promise<void>
   uploadImage:  (tradeId: string, file: File, type: ImageType, uid: string) => Promise<string>
@@ -47,7 +47,6 @@ export const useStore = create<Store>((set, get) => ({
     get().unsub?.()
     set({ loading: true })
 
-    // ✅ FIX: removed orderBy to avoid composite index requirement
     const tq = query(
       collection(db, 'trades'),
       where('userId', '==', uid),
@@ -97,13 +96,15 @@ export const useStore = create<Store>((set, get) => ({
     })
   },
 
-  addTrade: async (data, uid) => {
+  addTrade: async (data: Omit<Trade,'id'|'userId'|'createdAt'>, uid) => {
     const pnl  = calcPnL(data)
     const pips = calcPips(data)
     const rr   = calcRR(data)
-    const status: Trade['status'] = data.exitPrice
-      ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
-      : 'OPEN'
+    const status: Trade['status'] = data.status
+      ? data.status
+      : data.exitPrice
+        ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
+        : 'OPEN'
     const ref2 = await addDoc(collection(db, 'trades'), {
       ...data, userId: uid, profitLoss: pnl, pips, riskReward: rr, status,
       createdAt: new Date().toISOString(),
