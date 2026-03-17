@@ -132,12 +132,15 @@ export function buildEquityCurve(trades: Trade[], startingBalance = 10000): Equi
 
 // ── buildCalendar ──────────────────────────────────────────────
 
-export function buildCalendar(trades: Trade[], year: number, month: number): DayStats[] {
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
+export function buildCalendar(trades: Trade[], year?: number, month?: number): DayStats[] {
+  const now = new Date()
+  const y = year  ?? now.getFullYear()
+  const m = month ?? now.getMonth()
+  const daysInMonth = new Date(y, m + 1, 0).getDate()
   const result: DayStats[] = []
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const date = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const dayTrades = trades.filter(t => t.date === date)
     const wins   = dayTrades.filter(t => t.status === 'WIN').length
     const losses = dayTrades.filter(t => t.status === 'LOSS').length
