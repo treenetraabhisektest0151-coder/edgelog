@@ -1,125 +1,79 @@
-// ── Enums ─────────────────────────────────────────────────────
-export type TradeDirection = 'BUY' | 'SELL'
-export type TradeSession   = 'Asian' | 'London' | 'New York'
-export type TradeStrategy  = 'SMC' | 'ICT' | 'Scalping' | 'Breakout' | 'Other'
-export type TradeStatus    = 'WIN' | 'LOSS' | 'BREAKEVEN' | 'OPEN'
-export type MistakeType    = 'None' | 'FOMO' | 'Revenge Trading' | 'Early Exit' | 'No Stop Loss'
-export type NewsImpact     = 'Low' | 'Medium' | 'High'
-export type NewsEventType  = 'CPI' | 'NFP' | 'FOMC' | 'GDP' | 'PMI' | 'Other'
-export type TradeTag       = '#SMC' | '#ICT' | '#Scalp' | '#PerfectSetup' | '#Mistake'
+import { Trade, TradeStatus } from '@/types'
 
-// ── Core models ────────────────────────────────────────────────
-export interface Trade {
-  id: string
-  userId: string
-  createdAt: string
+// ── Calc helpers (used in TradeStore) ──────────────────────────
 
-  // Basics
-  date: string          // yyyy-MM-dd
-  time: string          // HH:mm
-  pair: string
-  session: TradeSession
-  direction: TradeDirection
-  strategy: TradeStrategy
-  status: TradeStatus
-  tags: TradeTag[]
-
-  // Prices
-  entryPrice: number
-  stopLoss: number
-  takeProfit: number
-  exitPrice: number
-
-  // Position
-  lotSize: number
-  riskPercent: number
-  accountBalance: number
-
-  // Computed
-  profitLoss: number    // in $
-  riskReward: number
-  pips: number
-
-  // Psychology
-  mood: number          // 1-10
-  confidence: number    // 1-10
-  fear: number          // 1-10
-  discipline: boolean
-  mistakeType: MistakeType
-  notes: string
-
-  // News
-  tradedDuringNews: boolean
-  newsEventId?: string
-
-  // Images (Firebase Storage URLs)
-  beforeImage?: string
-  afterImage?: string
-  markupImage?: string
+export function calcPnL(trade: Partial<Trade>): number {
+  return trade.profitLoss ?? 0
 }
 
-export interface NewsEvent {
-  id: string
-  userId: string
-  date: string
-  time: string
-  currency: string
-  title: string
-  impact: NewsImpact
-  type: NewsEventType
-  notes?: string
+export function calcPips(trade: Partial<Trade>): number {
+  return trade.pips ?? 0
 }
 
-export interface UserProfile {
-  uid: string
-  email: string
-  displayName: string
-  startingBalance: number
-  currency: string
-  riskPerTrade: number
-  broker?: string
-  createdAt: string
+export function calcRR(trade: Partial<Trade>): number {
+  return trade.riskReward ?? 0
+}
+
+export function tradeStatus(trade: Partial<Trade>): string {
+  const map: Record<TradeStatus, string> = {
+    WIN:       'Win',
+    LOSS:      'Loss',
+    BREAKEVEN: 'Breakeven',
+    OPEN:      'Open',
+  }
+  return map[trade.status as TradeStatus] ?? (trade.status ?? '')
+}
+
+// ── Formatting ─────────────────────────────────────────────────
+
+export function formatCurrency(value: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(value)
+}
+
+export function formatPct(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 
 // ── Derived stats ──────────────────────────────────────────────
-export interface AccountStats {
-  balance: number
-  totalPnL: number
-  todayPnL: number
-  weekPnL: number
-  monthPnL: number
-  totalTrades: number
-  wins: number
-  losses: number
-  winRate: number
-  avgRR: number
-  profitFactor: number
-  maxDrawdown: number
-  bestTrade: number
-  worstTrade: number
-  currentStreak: number
+
+export function winRate(trades: Trade[]): number {
+  if (!trades.length) return 0
+  const wins = trades.filter(t => t.status === 'WIN').length
+  return (wins / trades.length) * 100
 }
 
-export interface EquityPoint {
-  label: string
-  equity: number
-  drawdown: number
+export function profitFactor(trades: Trade[]): number {
+  const grossProfit = trades
+    .filter(t => t.profitLoss > 0)
+    .reduce((s, t) => s + t.profitLoss, 0)
+  const grossLoss = Math.abs(
+    trades.filter(t => t.profitLoss < 0).reduce((s, t) => s + t.profitLoss, 0)
+  )
+  return grossLoss === 0 ? grossProfit : grossProfit / grossLoss
 }
 
-export interface DayStats {
-  date: string
-  pnl: number
-  trades: number
-  wins: number
-  losses: number
+export function avgRR(trades: Trade[]): number {
+  const closed = trades.filter(t => t.status !== 'OPEN')
+  if (!closed.length) return 0
+  return closed.reduce((s, t) => s + t.riskReward, 0) / closed.length
 }
 
-// ── Filter types ───────────────────────────────────────────────
-export interface TradeFilters {
-  dateFrom: string
-  dateTo: string
-  pair: string
-  strategy: string
-  status: string
-  tags: TradeTag[]
+export function maxDrawdown(trades: Trade[]): number {
+  let peak = 0
+  let equity = 0
+  let dd = 0
+  const sorted = [...trades].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
+  for (const t of sorted) {
+    equity += t.profitLoss
+    if (equity > peak) peak = equity
+    const cur = peak - equity
+    if (cur > dd) dd = cur
+  }
+  return dd
 }
