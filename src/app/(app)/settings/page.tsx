@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth }   from '@/context/AuthContext'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -7,11 +7,10 @@ import { useStore } from '@/context/TradeStore'
 import { buildStats, fmtCurrency } from '@/utils'
 import toast from 'react-hot-toast'
 import {
-  Settings, User, DollarSign, Shield,
+  Settings, User, Shield,
   Save, TrendingUp, AlertTriangle,
 } from 'lucide-react'
 
-// ✅ FIXED: Moved outside component so they don't recreate on every keystroke
 const Section = ({ title, icon: Icon, children }: {
   title: string; icon: any; children: React.ReactNode
 }) => (
@@ -35,12 +34,23 @@ export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth()
   const { trades } = useStore()
 
-  const [name,    setName]    = useState(profile?.displayName || '')
-  const [balance, setBalance] = useState(String(profile?.startingBalance || 10000))
-  const [currency,setCurrency]= useState(profile?.currency || 'USD')
-  const [risk,    setRisk]    = useState(String(profile?.riskPerTrade ?? 1))
-  const [broker,  setBroker]  = useState(profile?.broker || '')
-  const [busy,    setBusy]    = useState(false)
+  const [name,     setName]     = useState('')
+  const [balance,  setBalance]  = useState('10000')
+  const [currency, setCurrency] = useState('USD')
+  const [risk,     setRisk]     = useState('1')
+  const [broker,   setBroker]   = useState('')
+  const [busy,     setBusy]     = useState(false)
+
+  // ✅ FIXED: Sync fields when profile loads from Firebase
+  useEffect(() => {
+    if (profile) {
+      setName(profile.displayName || '')
+      setBalance(String(profile.startingBalance || 10000))
+      setCurrency(profile.currency || 'USD')
+      setRisk(String(profile.riskPerTrade ?? 1))
+      setBroker(profile.broker || '')
+    }
+  }, [profile])
 
   const stats = buildStats(trades, profile?.startingBalance || 10000)
 
@@ -65,7 +75,6 @@ export default function SettingsPage() {
   return (
     <div className="page space-y-5">
 
-      {/* Header */}
       <div className="animate-fade-up">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Settings size={22} className="text-gold-400" />
@@ -77,7 +86,6 @@ export default function SettingsPage() {
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Profile form */}
           <form onSubmit={save} className="animate-fade-up d1">
             <Section title="Profile & Account" icon={User}>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -136,19 +144,18 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* Stats sidebar */}
         <div className="space-y-4 animate-fade-up d2">
           <Section title="Account Summary" icon={TrendingUp}>
             <div className="space-y-3">
               {[
-                { label: 'Current Balance',   val: fmtCurrency(stats.balance),               color: 'text-white' },
-                { label: 'Total P&L',         val: `${stats.totalPnL >= 0 ? '+' : ''}${fmtCurrency(stats.totalPnL)}`, color: stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400' },
-                { label: 'Total Trades',      val: stats.totalTrades,                         color: 'text-white' },
-                { label: 'Win Rate',          val: `${stats.winRate}%`,                       color: 'text-gold-400' },
-                { label: 'Profit Factor',     val: stats.profitFactor.toFixed(2),             color: 'text-blue-400' },
-                { label: 'Max Drawdown',      val: `${stats.maxDrawdown.toFixed(2)}%`,        color: 'text-red-400' },
-                { label: 'Best Trade',        val: fmtCurrency(stats.bestTrade),              color: 'text-emerald-400' },
-                { label: 'Worst Trade',       val: fmtCurrency(stats.worstTrade),             color: 'text-red-400' },
+                { label: 'Current Balance',  val: fmtCurrency(stats.balance),                color: 'text-white' },
+                { label: 'Total P&L',        val: `${stats.totalPnL >= 0 ? '+' : ''}${fmtCurrency(stats.totalPnL)}`, color: stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                { label: 'Total Trades',     val: stats.totalTrades,                          color: 'text-white' },
+                { label: 'Win Rate',         val: `${stats.winRate}%`,                        color: 'text-gold-400' },
+                { label: 'Profit Factor',    val: stats.profitFactor.toFixed(2),              color: 'text-blue-400' },
+                { label: 'Max Drawdown',     val: `${stats.maxDrawdown.toFixed(2)}%`,         color: 'text-red-400' },
+                { label: 'Best Trade',       val: fmtCurrency(stats.bestTrade),               color: 'text-emerald-400' },
+                { label: 'Worst Trade',      val: fmtCurrency(stats.worstTrade),              color: 'text-red-400' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="flex justify-between items-center py-2 border-b border-white/[0.04] last:border-0">
                   <span className="text-xs text-muted">{label}</span>
@@ -158,7 +165,6 @@ export default function SettingsPage() {
             </div>
           </Section>
 
-          {/* Danger zone */}
           <div className="card p-4 border-red-500/20 bg-red-500/[0.03]">
             <p className="text-xs font-semibold text-red-400 mb-2 flex items-center gap-1.5">
               <AlertTriangle size={13} /> Account Member Since
