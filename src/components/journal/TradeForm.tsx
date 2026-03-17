@@ -65,7 +65,6 @@ const STATUS_COLOR: Record<TradeStatus, string> = {
   OPEN:      'bg-blue-500/20 border-blue-500/40 text-blue-400',
 }
 
-// ✅ FIXED: dark style for all native <option> elements
 const optStyle = { backgroundColor: '#0f1117', color: '#ffffff' }
 
 interface TradeFormProps {
@@ -107,6 +106,7 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         session:          form.session as TradeSession,
         direction:        form.direction as TradeDirection,
         strategy:         form.strategy as TradeStrategy,
+        status:           form.status as TradeStatus,        // ✅ ADDED
         tags:             form.tags,
         entryPrice:       parseFloat(form.entryPrice)    || 0,
         stopLoss:         parseFloat(form.stopLoss)       || 0,
@@ -115,6 +115,9 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         lotSize:          parseFloat(form.lotSize)        || 0,
         riskPercent:      parseFloat(form.riskPercent)    || 0,
         accountBalance:   parseFloat(form.accountBalance) || 0,
+        profitLoss:       parseFloat(form.profitLoss)     || 0, // ✅ ADDED
+        pips:             parseFloat(form.pips)           || 0, // ✅ ADDED
+        riskReward:       parseFloat(form.riskReward)     || 0, // ✅ ADDED
         mood:             parseInt(form.mood)             || 5,
         confidence:       parseInt(form.confidence)       || 5,
         fear:             parseInt(form.fear)             || 5,
