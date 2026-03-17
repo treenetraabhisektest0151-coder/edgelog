@@ -22,7 +22,8 @@ export default function TradeFilters({ filters: extFilters, onChange: extChange,
   const onChange = extChange  ?? ((f: Partial<Filters>) => setInternal(p => ({ ...p, ...f })))
   const onClear  = extClear   ?? (() => setInternal(EMPTY))
 
-  const inp = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#D4AA50]/50 transition-colors'
+  // ✅ FIXED: changed bg-white/5 to bg-[#0f1117] so option elements inherit a solid color
+  const inp = 'w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#D4AA50]/50 transition-colors'
   const lbl = 'block text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1'
 
   function toggleTag(tag: TradeTag) {
@@ -64,19 +65,32 @@ export default function TradeFilters({ filters: extFilters, onChange: extChange,
         <div>
           <label className={lbl}>Pair</label>
           <select className={inp} value={filters.pair} onChange={e => onChange({ pair: e.target.value })}>
-            {PAIRS.map(p => <option key={p} value={p}>{p || 'All'}</option>)}
+            {PAIRS.map(p => (
+              // ✅ FIXED: added style directly on option for browser compatibility
+              <option key={p} value={p} style={{ backgroundColor: '#0f1117', color: '#ffffff' }}>
+                {p || 'All'}
+              </option>
+            ))}
           </select>
         </div>
         <div>
           <label className={lbl}>Strategy</label>
           <select className={inp} value={filters.strategy} onChange={e => onChange({ strategy: e.target.value })}>
-            {STRATEGIES.map(s => <option key={s} value={s}>{s || 'All'}</option>)}
+            {STRATEGIES.map(s => (
+              <option key={s} value={s} style={{ backgroundColor: '#0f1117', color: '#ffffff' }}>
+                {s || 'All'}
+              </option>
+            ))}
           </select>
         </div>
         <div>
           <label className={lbl}>Status</label>
           <select className={inp} value={filters.status} onChange={e => onChange({ status: e.target.value })}>
-            {STATUSES.map(s => <option key={s} value={s}>{s || 'All'}</option>)}
+            {STATUSES.map(s => (
+              <option key={s} value={s} style={{ backgroundColor: '#0f1117', color: '#ffffff' }}>
+                {s || 'All'}
+              </option>
+            ))}
           </select>
         </div>
       </div>
