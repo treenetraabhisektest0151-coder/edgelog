@@ -1,54 +1,36 @@
 'use client'
-
-import React, { useMemo } from 'react'
+import React from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { Trade } from '@/types'
+import { EquityPoint } from '@/types'
 
 interface Props {
-  trades: Trade[]
-  initialBalance?: number
+  data:         EquityPoint[]
+  startBalance: number
 }
-
-interface DataPoint { index: number; date: string; equity: number; pnl: number }
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null
-  const d = payload[0].payload as DataPoint
+  const d = payload[0].payload as EquityPoint
   return (
     <div className="bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2 text-xs shadow-xl">
-      <p className="text-white/40 mb-1">{d.date}</p>
+      <p className="text-white/40 mb-1">{d.label}</p>
       <p className="text-white font-semibold">
         Equity: <span className="text-[#D4AA50]">
           ${d.equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}
         </span>
       </p>
-      <p className={`font-medium ${d.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-        PnL: {d.pnl >= 0 ? '+' : ''}{d.pnl.toFixed(2)}
-      </p>
+      {d.drawdown > 0 && (
+        <p className="text-red-400">DD: -{d.drawdown.toFixed(2)}%</p>
+      )}
     </div>
   )
 }
 
-export default function EquityCurveChart({ trades, initialBalance = 10000 }: Props) {
-  const data = useMemo<DataPoint[]>(() => {
-    const sorted = [...trades].sort(
-      (a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime()
-    )
-    let equity = initialBalance
-    return sorted.map((trade, i) => {
-      const pnl = trade.profitLoss ?? 0
-      equity += pnl
-      const date = trade.date
-        ? new Date(trade.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : `Trade ${i + 1}`
-      return { index: i + 1, date, equity, pnl }
-    })
-  }, [trades, initialBalance])
-
-  if (!data.length) {
+export default function EquityCurveChart({ data, startBalance }: Props) {
+  if (!data || data.length < 2) {
     return (
       <div className="flex items-center justify-center h-48 text-white/30 text-sm">
         No trade data yet
@@ -56,16 +38,25 @@ export default function EquityCurveChart({ trades, initialBalance = 10000 }: Pro
     )
   }
 
-  const minEquity = Math.min(...data.map(d => d.equity), initialBalance)
-  const maxEquity = Math.max(...data.map(d => d.equity), initialBalance)
-  const padding = (maxEquity - minEquity) * 0.1 || 500
+  const equities  = data.map(d => d.equity)
+  const minEquity = Math.min(...equities)
+  const maxEquity = Math.max(...equities)
+  const padding   = (maxEquity - minEquity) * 0.1 || 500
+
+  const isProfit = data[data.length - 1].equity >= startBalance
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={isProfit ? '#34d399' : '#f87171'} stopOpacity={0.25} />
+            <stop offset="100%" stopColor={isProfit ? '#34d399' : '#f87171'} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
         <XAxis
-          dataKey="date"
+          dataKey="label"
           tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
           axisLine={false} tickLine={false} interval="preserveStartEnd"
         />
@@ -77,12 +68,14 @@ export default function EquityCurveChart({ trades, initialBalance = 10000 }: Pro
           width={52}
         />
         <Tooltip content={<CustomTooltip />} />
-        <ReferenceLine y={initialBalance} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-        <Line
-          type="monotone" dataKey="equity" stroke="#D4AA50" strokeWidth={2}
-          dot={false} activeDot={{ r: 4, fill: '#D4AA50', strokeWidth: 0 }}
+        <ReferenceLine y={startBalance} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
+        <Area
+          type="monotone" dataKey="equity"
+          stroke={isProfit ? '#34d399' : '#f87171'}
+          strokeWidth={2} fill="url(#curveGrad)"
+          dot={false} activeDot={{ r: 4, strokeWidth: 0 }}
         />
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   )
 }

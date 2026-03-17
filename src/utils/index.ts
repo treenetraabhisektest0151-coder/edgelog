@@ -132,20 +132,18 @@ export function buildEquityCurve(trades: Trade[], startingBalance = 10000): Equi
 
 // ── buildCalendar ──────────────────────────────────────────────
 
-export function buildCalendar(trades: Trade[], year?: number, month?: number): DayStats[] {
-  const now = new Date()
-  const y = year  ?? now.getFullYear()
-  const m = month ?? now.getMonth()
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
-  const result: DayStats[] = []
+export function buildCalendar(trades: Trade[]): Record<string, DayStats> {
+  const result: Record<string, DayStats> = {}
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    const dayTrades = trades.filter(t => t.date === date)
-    const wins   = dayTrades.filter(t => t.status === 'WIN').length
-    const losses = dayTrades.filter(t => t.status === 'LOSS').length
-    const pnl    = dayTrades.reduce((s, t) => s + t.profitLoss, 0)
-    result.push({ date, pnl, trades: dayTrades.length, wins, losses })
+  for (const t of trades) {
+    if (!t.date) continue
+    if (!result[t.date]) {
+      result[t.date] = { date: t.date, pnl: 0, trades: 0, wins: 0, losses: 0 }
+    }
+    result[t.date].trades++
+    result[t.date].pnl += t.profitLoss
+    if (t.status === 'WIN')  result[t.date].wins++
+    if (t.status === 'LOSS') result[t.date].losses++
   }
   return result
 }
