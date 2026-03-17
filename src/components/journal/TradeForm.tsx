@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useStore } from '@/context/TradeStore'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -35,6 +35,8 @@ interface FormState {
   notes: string
   tradedDuringNews: boolean
 }
+
+type ImageType = 'before' | 'after' | 'markup'
 
 const TODAY = new Date().toISOString().split('T')[0]
 const NOW   = new Date().toTimeString().slice(0, 5)
@@ -72,12 +74,53 @@ interface TradeFormProps {
   onClose?: () => void
 }
 
+function ImageUploadBox({
+  label, file, preview, onSelect, onClear,
+}: {
+  label: string
+  file: File | null
+  preview: string | null
+  onSelect: (f: File) => void
+  onClear: () => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  return (
+    <div>
+      <p className="block text-[11px] font-medium text-white/40 uppercase tracking-wider mb-1">{label}</p>
+      {preview ? (
+        <div className="relative rounded-lg overflow-hidden border border-white/10 h-32">
+          <img src={preview} alt={label} className="w-full h-full object-cover" />
+          <button type="button" onClick={onClear}
+            className="absolute top-1 right-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded hover:bg-red-500/80 transition-colors">
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => ref.current?.click()}
+          className="h-32 rounded-lg border border-dashed border-white/20 flex flex-col items-center justify-center cursor-pointer hover:border-[#D4AA50]/50 hover:bg-white/[0.02] transition-colors">
+          <p className="text-white/30 text-xs">Click to upload</p>
+          <p className="text-white/20 text-[10px] mt-1">PNG, JPG, WEBP</p>
+        </div>
+      )}
+      <input
+        ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) onSelect(f) }}
+      />
+    </div>
+  )
+}
+
 export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
-  const { addTrade } = useStore()
-  const { user }     = useAuth()
+  const { addTrade, uploadImage } = useStore()
+  const { user } = useAuth()
   const [form, setForm] = useState<FormState>(INITIAL)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+
+  // Image state
+  const [images, setImages] = useState<Record<ImageType, File | null>>({ before: null, after: null, markup: null })
+  const [previews, setPreviews] = useState<Record<ImageType, string | null>>({ before: null, after: null, markup: null })
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }))
@@ -90,6 +133,17 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
     }))
   }
 
+  function selectImage(type: ImageType, file: File) {
+    setImages(prev => ({ ...prev, [type]: file }))
+    const url = URL.createObjectURL(file)
+    setPreviews(prev => ({ ...prev, [type]: url }))
+  }
+
+  function clearImage(type: ImageType) {
+    setImages(prev => ({ ...prev, [type]: null }))
+    setPreviews(prev => ({ ...prev, [type]: null }))
+  }
+
   async function handleSubmit() {
     if (!user) return
     if (!form.pair || !form.status || !form.direction) {
@@ -99,14 +153,14 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
     setError('')
     setLoading(true)
     try {
-      await addTrade({
+      const tradeId = await addTrade({
         date:             form.date,
         time:             form.time,
         pair:             form.pair,
         session:          form.session as TradeSession,
         direction:        form.direction as TradeDirection,
         strategy:         form.strategy as TradeStrategy,
-        status:           form.status as TradeStatus,        // ✅ ADDED
+        status:           form.status as TradeStatus,
         tags:             form.tags,
         entryPrice:       parseFloat(form.entryPrice)    || 0,
         stopLoss:         parseFloat(form.stopLoss)       || 0,
@@ -115,9 +169,9 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         lotSize:          parseFloat(form.lotSize)        || 0,
         riskPercent:      parseFloat(form.riskPercent)    || 0,
         accountBalance:   parseFloat(form.accountBalance) || 0,
-        profitLoss:       parseFloat(form.profitLoss)     || 0, // ✅ ADDED
-        pips:             parseFloat(form.pips)           || 0, // ✅ ADDED
-        riskReward:       parseFloat(form.riskReward)     || 0, // ✅ ADDED
+        profitLoss:       parseFloat(form.profitLoss)     || 0,
+        pips:             parseFloat(form.pips)           || 0,
+        riskReward:       parseFloat(form.riskReward)     || 0,
         mood:             parseInt(form.mood)             || 5,
         confidence:       parseInt(form.confidence)       || 5,
         fear:             parseInt(form.fear)             || 5,
@@ -126,7 +180,16 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         notes:            form.notes,
         tradedDuringNews: form.tradedDuringNews,
       }, user.uid)
+
+      // Upload images after trade is saved
+      const uploads = (['before','after','markup'] as ImageType[])
+        .filter(t => images[t])
+        .map(t => uploadImage(tradeId, images[t]!, t, user.uid))
+      await Promise.all(uploads)
+
       setForm(INITIAL)
+      setImages({ before: null, after: null, markup: null })
+      setPreviews({ before: null, after: null, markup: null })
       onSuccess?.()
       onClose?.()
     } catch (e: any) {
@@ -243,6 +306,23 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
           <select className={inp} value={form.mistakeType} onChange={e => set('mistakeType', e.target.value as MistakeType)}>
             {MISTAKES.map(m => <option key={m} value={m} style={optStyle}>{m}</option>)}
           </select>
+        </div>
+      </div>
+
+      {/* ── Screenshots ── */}
+      <div>
+        <label className={lbl}>Screenshots</label>
+        <div className="grid grid-cols-3 gap-3">
+          {(['before','after','markup'] as ImageType[]).map(type => (
+            <ImageUploadBox
+              key={type}
+              label={type.charAt(0).toUpperCase() + type.slice(1)}
+              file={images[type]}
+              preview={previews[type]}
+              onSelect={f => selectImage(type, f)}
+              onClear={() => clearImage(type)}
+            />
+          ))}
         </div>
       </div>
 
