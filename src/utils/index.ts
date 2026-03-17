@@ -1,5 +1,10 @@
 import { Trade, TradeStatus, AccountStats, EquityPoint, DayStats } from '@/types'
 
+// ── Class name helper ──────────────────────────────────────────
+export function cx(...classes: (string | undefined | null | false)[]): string {
+  return classes.filter(Boolean).join(' ')
+}
+
 // ── Calc helpers (TradeStore) ──────────────────────────────────
 
 export function calcPnL(trade: Partial<Trade>): number {
