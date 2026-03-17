@@ -1,6 +1,6 @@
-import { Trade, TradeStatus } from '@/types'
+import { Trade, TradeStatus, AccountStats, EquityPoint, DayStats } from '@/types'
 
-// ── Calc helpers (used in TradeStore) ──────────────────────────
+// ── Calc helpers (TradeStore) ──────────────────────────────────
 
 export function calcPnL(trade: Partial<Trade>): number {
   return trade.profitLoss ?? 0
@@ -16,44 +16,149 @@ export function calcRR(trade: Partial<Trade>): number {
 
 export function tradeStatus(trade: Partial<Trade>): string {
   const map: Record<TradeStatus, string> = {
-    WIN:       'Win',
-    LOSS:      'Loss',
-    BREAKEVEN: 'Breakeven',
-    OPEN:      'Open',
+    WIN: 'Win', LOSS: 'Loss', BREAKEVEN: 'Breakeven', OPEN: 'Open',
   }
   return map[trade.status as TradeStatus] ?? (trade.status ?? '')
 }
 
-// ── Formatting ─────────────────────────────────────────────────
+// ── Formatters ─────────────────────────────────────────────────
 
-export function formatCurrency(value: number, currency = 'USD'): string {
+export function fmtCurrency(value: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
+    style: 'currency', currency, minimumFractionDigits: 2,
   }).format(value)
 }
 
-export function formatPct(value: number): string {
+/** @deprecated use fmtCurrency */
+export const formatCurrency = fmtCurrency
+
+export function fmtPnL(value: number): string {
+  const sign = value > 0 ? '+' : ''
+  return `${sign}$${Math.abs(value).toFixed(2)}`
+}
+
+export function fmtPct(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 
-// ── Derived stats ──────────────────────────────────────────────
+/** @deprecated use fmtPct */
+export const formatPct = fmtPct
+
+// ── buildStats ─────────────────────────────────────────────────
+
+export function buildStats(trades: Trade[], startingBalance = 10000): AccountStats {
+  const closed = trades.filter(t => t.status !== 'OPEN')
+  const wins   = closed.filter(t => t.status === 'WIN')
+  const losses = closed.filter(t => t.status === 'LOSS')
+
+  const totalPnL = closed.reduce((s, t) => s + t.profitLoss, 0)
+
+  const today = new Date().toISOString().split('T')[0]
+  const weekAgo  = new Date(Date.now() - 7  * 86400000).toISOString().split('T')[0]
+  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+
+  const todayPnL  = trades.filter(t => t.date === today).reduce((s, t) => s + t.profitLoss, 0)
+  const weekPnL   = trades.filter(t => t.date >= weekAgo).reduce((s, t) => s + t.profitLoss, 0)
+  const monthPnL  = trades.filter(t => t.date >= monthAgo).reduce((s, t) => s + t.profitLoss, 0)
+
+  const grossProfit = wins.reduce((s, t) => s + t.profitLoss, 0)
+  const grossLoss   = Math.abs(losses.reduce((s, t) => s + t.profitLoss, 0))
+
+  const avgRRVal = closed.length
+    ? closed.reduce((s, t) => s + t.riskReward, 0) / closed.length
+    : 0
+
+  // max drawdown
+  let peak = startingBalance, equity = startingBalance, maxDD = 0
+  const sorted = [...closed].sort((a, b) => a.date.localeCompare(b.date))
+  for (const t of sorted) {
+    equity += t.profitLoss
+    if (equity > peak) peak = equity
+    const dd = peak - equity
+    if (dd > maxDD) maxDD = dd
+  }
+
+  // streak
+  let streak = 0
+  const rev = [...closed].reverse()
+  if (rev.length) {
+    const dir = rev[0].status === 'WIN' ? 'WIN' : 'LOSS'
+    for (const t of rev) {
+      if (t.status === dir) streak++
+      else break
+    }
+    if (dir === 'LOSS') streak = -streak
+  }
+
+  return {
+    balance:       startingBalance + totalPnL,
+    totalPnL,
+    todayPnL,
+    weekPnL,
+    monthPnL,
+    totalTrades:   trades.length,
+    wins:          wins.length,
+    losses:        losses.length,
+    winRate:       closed.length ? (wins.length / closed.length) * 100 : 0,
+    avgRR:         avgRRVal,
+    profitFactor:  grossLoss === 0 ? grossProfit : grossProfit / grossLoss,
+    maxDrawdown:   maxDD,
+    bestTrade:     closed.length ? Math.max(...closed.map(t => t.profitLoss)) : 0,
+    worstTrade:    closed.length ? Math.min(...closed.map(t => t.profitLoss)) : 0,
+    currentStreak: streak,
+  }
+}
+
+// ── buildEquityCurve ───────────────────────────────────────────
+
+export function buildEquityCurve(trades: Trade[], startingBalance = 10000): EquityPoint[] {
+  const sorted = [...trades]
+    .filter(t => t.status !== 'OPEN')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+
+  let equity = startingBalance
+  let peak   = startingBalance
+  const curve: EquityPoint[] = [{ label: 'Start', equity: startingBalance, drawdown: 0 }]
+
+  for (const t of sorted) {
+    equity += t.profitLoss
+    if (equity > peak) peak = equity
+    const drawdown = peak > 0 ? ((peak - equity) / peak) * 100 : 0
+    const label = new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    curve.push({ label, equity, drawdown })
+  }
+  return curve
+}
+
+// ── buildCalendar ──────────────────────────────────────────────
+
+export function buildCalendar(trades: Trade[], year: number, month: number): DayStats[] {
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const result: DayStats[] = []
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const dayTrades = trades.filter(t => t.date === date)
+    const wins   = dayTrades.filter(t => t.status === 'WIN').length
+    const losses = dayTrades.filter(t => t.status === 'LOSS').length
+    const pnl    = dayTrades.reduce((s, t) => s + t.profitLoss, 0)
+    result.push({ date, pnl, trades: dayTrades.length, wins, losses })
+  }
+  return result
+}
+
+// ── Misc ───────────────────────────────────────────────────────
 
 export function winRate(trades: Trade[]): number {
-  if (!trades.length) return 0
-  const wins = trades.filter(t => t.status === 'WIN').length
-  return (wins / trades.length) * 100
+  const closed = trades.filter(t => t.status !== 'OPEN')
+  if (!closed.length) return 0
+  return (closed.filter(t => t.status === 'WIN').length / closed.length) * 100
 }
 
 export function profitFactor(trades: Trade[]): number {
-  const grossProfit = trades
-    .filter(t => t.profitLoss > 0)
-    .reduce((s, t) => s + t.profitLoss, 0)
-  const grossLoss = Math.abs(
-    trades.filter(t => t.profitLoss < 0).reduce((s, t) => s + t.profitLoss, 0)
-  )
-  return grossLoss === 0 ? grossProfit : grossProfit / grossLoss
+  const gp = trades.filter(t => t.profitLoss > 0).reduce((s, t) => s + t.profitLoss, 0)
+  const gl = Math.abs(trades.filter(t => t.profitLoss < 0).reduce((s, t) => s + t.profitLoss, 0))
+  return gl === 0 ? gp : gp / gl
 }
 
 export function avgRR(trades: Trade[]): number {
@@ -63,12 +168,8 @@ export function avgRR(trades: Trade[]): number {
 }
 
 export function maxDrawdown(trades: Trade[]): number {
-  let peak = 0
-  let equity = 0
-  let dd = 0
-  const sorted = [...trades].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
+  let peak = 0, equity = 0, dd = 0
+  const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date))
   for (const t of sorted) {
     equity += t.profitLoss
     if (equity > peak) peak = equity
