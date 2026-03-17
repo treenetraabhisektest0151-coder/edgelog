@@ -2,8 +2,6 @@
 
 import React, { useState } from 'react'
 import { Trade, TradeStatus, TradeDirection } from '@/types'
-import { tradeStatus } from '@/utils'
-
 interface Props {
   trades: Trade[]
   onEdit?: (trade: Trade) => void
@@ -104,7 +102,7 @@ export default function TradeTable({ trades, onEdit, onDelete, onExportCSV }: Pr
                 <td className="py-2.5 pr-4 text-white/60">{(trade.riskReward ?? 0).toFixed(2)}R</td>
                 <td className="py-2.5 pr-4">
                   <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${STATUS_STYLE[trade.status] ?? 'bg-white/5 text-white/40 border-white/10'}`}>
-                    {tradeStatus({ status: trade.status })}
+                    {trade.status}
                   </span>
                 </td>
                 <td className="py-2.5">

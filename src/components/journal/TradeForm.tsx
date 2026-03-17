@@ -104,7 +104,6 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         session:          form.session as TradeSession,
         direction:        form.direction as TradeDirection,
         strategy:         form.strategy as TradeStrategy,
-        status:           form.status as TradeStatus,
         tags:             form.tags,
         entryPrice:       parseFloat(form.entryPrice)    || 0,
         stopLoss:         parseFloat(form.stopLoss)       || 0,

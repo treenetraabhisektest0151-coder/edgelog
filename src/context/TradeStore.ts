@@ -97,10 +97,10 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   addTrade: async (data, uid) => {
-    const pnl    = calcPnL(data.direction, data.entryPrice, data.exitPrice, data.lotSize, data.pair)
-    const pips   = calcPips(data.direction, data.entryPrice, data.exitPrice, data.pair)
-    const rr     = calcRR(data.direction, data.entryPrice, data.stopLoss, data.takeProfit)
-    const status = data.exitPrice ? tradeStatus(pnl) : 'OPEN'
+    const pnl    = calcPnL(data)
+    const pips   = calcPips(data)
+    const rr     = calcRR(data)
+    const status = data.exitPrice ? tradeStatus({ ...data, profitLoss: pnl }) : 'OPEN'
     const ref2   = await addDoc(collection(db, 'trades'), {
       ...data, userId: uid, profitLoss: pnl, pips, riskReward: rr, status,
       createdAt: new Date().toISOString(),
@@ -114,9 +114,9 @@ export const useStore = create<Store>((set, get) => ({
     const merged = { ...existing, ...data }
     const updates: Partial<Trade> = { ...data }
     if ('exitPrice' in data || 'entryPrice' in data || 'direction' in data || 'lotSize' in data) {
-      updates.profitLoss = calcPnL(merged.direction, merged.entryPrice, merged.exitPrice, merged.lotSize, merged.pair)
-      updates.pips       = calcPips(merged.direction, merged.entryPrice, merged.exitPrice, merged.pair)
-      updates.status     = tradeStatus(updates.profitLoss)
+      updates.profitLoss = calcPnL(merged)
+      updates.pips       = calcPips(merged)
+      updates.status     = tradeStatus(merged) as Trade['status']
     }
     await updateDoc(doc(db, 'trades', id), updates as any)
   },

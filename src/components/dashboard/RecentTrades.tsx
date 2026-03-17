@@ -16,7 +16,7 @@ const STATUS_STYLES: Record<TradeStatus, string> = {
 function StatusBadge({ status }: { status: TradeStatus }) {
   return (
     <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${STATUS_STYLES[status] ?? 'bg-white/5 text-white/40 border-white/10'}`}>
-      {tradeStatus({ status })}
+      {tradeStatus({ status: status as any })}
     </span>
   )
 }
