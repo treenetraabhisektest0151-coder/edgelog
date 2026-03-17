@@ -1,15 +1,11 @@
 import { Trade, TradeStatus, AccountStats, EquityPoint, DayStats } from '@/types'
 
-// ── Class name helper ──────────────────────────────────────────
 export function cx(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')
 }
 
-// ── Calc helpers (TradeStore) ──────────────────────────────────
-
 export function calcPnL(trade: Partial<Trade>): number {
   const raw = trade.profitLoss ?? 0
-  // ✅ FIX: auto-correct sign based on status
   if (trade.status === 'LOSS' && raw > 0) return -raw
   if (trade.status === 'WIN'  && raw < 0) return -raw
   return raw
@@ -30,8 +26,6 @@ export function tradeStatus(trade: Partial<Trade>): string {
   return map[trade.status as TradeStatus] ?? (trade.status ?? '')
 }
 
-// ── Formatters ─────────────────────────────────────────────────
-
 export function fmtCurrency(value: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency, minimumFractionDigits: 2,
@@ -41,9 +35,11 @@ export function fmtCurrency(value: number, currency = 'USD'): string {
 /** @deprecated use fmtCurrency */
 export const formatCurrency = fmtCurrency
 
+// ✅ FIX: correctly show negative sign
 export function fmtPnL(value: number): string {
-  const sign = value > 0 ? '+' : ''
-  return `${sign}$${Math.abs(value).toFixed(2)}`
+  if (value > 0) return `+$${value.toFixed(2)}`
+  if (value < 0) return `-$${Math.abs(value).toFixed(2)}`
+  return `$0.00`
 }
 
 export function fmtPct(value: number): string {
@@ -52,8 +48,6 @@ export function fmtPct(value: number): string {
 
 /** @deprecated use fmtPct */
 export const formatPct = fmtPct
-
-// ── buildStats ─────────────────────────────────────────────────
 
 export function buildStats(trades: Trade[], startingBalance = 10000): AccountStats {
   const closed = trades.filter(t => t.status !== 'OPEN')
@@ -77,17 +71,16 @@ export function buildStats(trades: Trade[], startingBalance = 10000): AccountSta
     ? closed.reduce((s, t) => s + t.riskReward, 0) / closed.length
     : 0
 
-  // max drawdown
+  // ✅ FIX: maxDrawdown as percentage
   let peak = startingBalance, equity = startingBalance, maxDD = 0
   const sorted = [...closed].sort((a, b) => a.date.localeCompare(b.date))
   for (const t of sorted) {
     equity += t.profitLoss
     if (equity > peak) peak = equity
-    const dd = peak - equity
+    const dd = peak > 0 ? ((peak - equity) / peak) * 100 : 0
     if (dd > maxDD) maxDD = dd
   }
 
-  // streak
   let streak = 0
   const rev = [...closed].reverse()
   if (rev.length) {
@@ -118,8 +111,6 @@ export function buildStats(trades: Trade[], startingBalance = 10000): AccountSta
   }
 }
 
-// ── buildEquityCurve ───────────────────────────────────────────
-
 export function buildEquityCurve(trades: Trade[], startingBalance = 10000): EquityPoint[] {
   const sorted = [...trades]
     .filter(t => t.status !== 'OPEN')
@@ -139,11 +130,8 @@ export function buildEquityCurve(trades: Trade[], startingBalance = 10000): Equi
   return curve
 }
 
-// ── buildCalendar ──────────────────────────────────────────────
-
 export function buildCalendar(trades: Trade[]): Record<string, DayStats> {
   const result: Record<string, DayStats> = {}
-
   for (const t of trades) {
     if (!t.date) continue
     if (!result[t.date]) {
@@ -156,8 +144,6 @@ export function buildCalendar(trades: Trade[]): Record<string, DayStats> {
   }
   return result
 }
-
-// ── Misc ───────────────────────────────────────────────────────
 
 export function winRate(trades: Trade[]): number {
   const closed = trades.filter(t => t.status !== 'OPEN')
