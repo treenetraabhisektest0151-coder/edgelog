@@ -8,7 +8,11 @@ export function cx(...classes: (string | undefined | null | false)[]): string {
 // ── Calc helpers (TradeStore) ──────────────────────────────────
 
 export function calcPnL(trade: Partial<Trade>): number {
-  return trade.profitLoss ?? 0
+  const raw = trade.profitLoss ?? 0
+  // ✅ FIX: auto-correct sign based on status
+  if (trade.status === 'LOSS' && raw > 0) return -raw
+  if (trade.status === 'WIN'  && raw < 0) return -raw
+  return raw
 }
 
 export function calcPips(trade: Partial<Trade>): number {
@@ -58,13 +62,13 @@ export function buildStats(trades: Trade[], startingBalance = 10000): AccountSta
 
   const totalPnL = closed.reduce((s, t) => s + t.profitLoss, 0)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today    = new Date().toISOString().split('T')[0]
   const weekAgo  = new Date(Date.now() - 7  * 86400000).toISOString().split('T')[0]
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
 
-  const todayPnL  = trades.filter(t => t.date === today).reduce((s, t) => s + t.profitLoss, 0)
-  const weekPnL   = trades.filter(t => t.date >= weekAgo).reduce((s, t) => s + t.profitLoss, 0)
-  const monthPnL  = trades.filter(t => t.date >= monthAgo).reduce((s, t) => s + t.profitLoss, 0)
+  const todayPnL = trades.filter(t => t.date === today).reduce((s, t) => s + t.profitLoss, 0)
+  const weekPnL  = trades.filter(t => t.date >= weekAgo).reduce((s, t) => s + t.profitLoss, 0)
+  const monthPnL = trades.filter(t => t.date >= monthAgo).reduce((s, t) => s + t.profitLoss, 0)
 
   const grossProfit = wins.reduce((s, t) => s + t.profitLoss, 0)
   const grossLoss   = Math.abs(losses.reduce((s, t) => s + t.profitLoss, 0))
