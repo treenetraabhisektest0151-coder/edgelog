@@ -8,6 +8,7 @@ interface Props {
   trades: Trade[]
   onEdit?: (trade: Trade) => void
   onDelete?: (id: string) => void
+  onExportCSV?: () => void
 }
 
 const STATUS_STYLE: Record<TradeStatus, string> = {
@@ -19,7 +20,7 @@ const STATUS_STYLE: Record<TradeStatus, string> = {
 
 type SortKey = 'date' | 'pair' | 'profitLoss' | 'pips' | 'riskReward' | 'status'
 
-export default function TradeTable({ trades, onEdit, onDelete }: Props) {
+export default function TradeTable({ trades, onEdit, onDelete, onExportCSV }: Props) {
   const [sortKey, setSortKey]   = useState<SortKey>('date')
   const [sortAsc, setSortAsc]   = useState(false)
   const [confirm, setConfirm]   = useState<string | null>(null)
