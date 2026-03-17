@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const cfg = {
@@ -14,8 +14,12 @@ const cfg = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(cfg)
 
-export const auth          = getAuth(app)
-export const db            = getFirestore(app)
-export const storage       = getStorage(app)
-export const googleProvider = new GoogleAuthProvider()  // 👈 add this
+// ✅ FIXED: experimentalForceLongPolling fixes Firestore 400 error
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+})
+
+export const auth           = getAuth(app)
+export const storage        = getStorage(app)
+export const googleProvider = new GoogleAuthProvider()
 export default app
