@@ -65,9 +65,12 @@ const STATUS_COLOR: Record<TradeStatus, string> = {
   OPEN:      'bg-blue-500/20 border-blue-500/40 text-blue-400',
 }
 
-interface TradeFormProps { onSuccess?: () => void }
+interface TradeFormProps { 
+  onSuccess?: () => void
+  onClose?: () => void
+}
 
-export default function TradeForm({ onSuccess }: TradeFormProps) {
+export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
   const { addTrade } = useStore()
   const { user }     = useAuth()
   const [form, setForm] = useState<FormState>(INITIAL)
@@ -123,6 +126,7 @@ export default function TradeForm({ onSuccess }: TradeFormProps) {
       }, user.uid)
       setForm(INITIAL)
       onSuccess?.()
+      onClose?.()
     } catch (e: any) {
       setError(e?.message ?? 'Failed to save trade.')
     } finally {
