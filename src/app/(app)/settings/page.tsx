@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAuth }   from '@/context/AuthContext'
-import { doc, updateDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useStore } from '@/context/TradeStore'
 import { buildStats, fmtCurrency } from '@/utils'
@@ -41,7 +41,6 @@ export default function SettingsPage() {
   const [broker,   setBroker]   = useState('')
   const [busy,     setBusy]     = useState(false)
 
-  // ✅ FIXED: Sync fields when profile loads from Firebase
   useEffect(() => {
     if (profile) {
       setName(profile.displayName || '')
@@ -59,13 +58,14 @@ export default function SettingsPage() {
     if (!user) return
     setBusy(true)
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
+      // ✅ FIXED: setDoc with merge:true creates OR updates the document
+      await setDoc(doc(db, 'users', user.uid), {
         displayName:     name,
         startingBalance: parseFloat(balance) || 10000,
         currency,
         riskPerTrade:    parseFloat(risk) || 1,
         broker,
-      })
+      }, { merge: true })
       await refreshProfile()
       toast.success('Settings saved')
     } catch { toast.error('Save failed') }
