@@ -2,15 +2,15 @@
 import { create } from 'zustand'
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, query, where, orderBy, onSnapshot,
+  doc, query, where, onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore'
 import {
-  ref, uploadBytes, getDownloadURL, deleteObject,
+  ref, uploadBytes, getDownloadURL,
 } from 'firebase/storage'
 import { db, storage } from '@/lib/firebase'
 import { Trade, NewsEvent, TradeFilters } from '@/types'
-import { calcPnL, calcPips, calcRR, tradeStatus } from '@/utils'
+import { calcPnL, calcPips, calcRR } from '@/utils'
 
 type ImageType = 'before' | 'after' | 'markup'
 const IMG_KEY: Record<ImageType, keyof Trade> = {
@@ -24,23 +24,18 @@ interface Store {
   filters:      Partial<TradeFilters>
   unsub:        Unsubscribe | null
 
-  // lifecycle
   subscribe:    (uid: string) => void
   unsubscribe:  () => void
 
-  // filters
   setFilters:   (f: Partial<TradeFilters>) => void
   clearFilters: () => void
   filtered:     () => Trade[]
 
-  // trades CRUD
-  // ✅ FIXED: removed status/profitLoss/pips/riskReward from Omit so manual values are accepted
-  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'>, uid: string) => Promise<string>
+  addTrade:     (data: Omit<Trade,'id'|'userId'|'createdAt'|'profitLoss'|'pips'|'riskReward'|'status'>, uid: string) => Promise<string>
   updateTrade:  (id: string, data: Partial<Trade>) => Promise<void>
   deleteTrade:  (id: string) => Promise<void>
   uploadImage:  (tradeId: string, file: File, type: ImageType, uid: string) => Promise<string>
 
-  // news CRUD
   addNews:      (data: Omit<NewsEvent,'id'|'userId'>, uid: string) => Promise<void>
   deleteNews:   (id: string) => Promise<void>
 }
@@ -52,24 +47,29 @@ export const useStore = create<Store>((set, get) => ({
     get().unsub?.()
     set({ loading: true })
 
+    // ✅ FIX: removed orderBy to avoid composite index requirement
     const tq = query(
       collection(db, 'trades'),
-      where('userId','==', uid),
-      orderBy('date','desc'),
-      orderBy('time','desc'),
+      where('userId', '==', uid),
     )
+
     const nq = query(
       collection(db, 'news'),
-      where('userId','==', uid),
-      orderBy('date','desc'),
+      where('userId', '==', uid),
     )
 
     const u1 = onSnapshot(tq, snap => {
-      set({ trades: snap.docs.map(d => ({ id: d.id, ...d.data() } as Trade)), loading: false })
+      const trades = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Trade))
+        .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? '').localeCompare(a.time ?? ''))
+      set({ trades, loading: false })
     }, () => set({ loading: false }))
 
     const u2 = onSnapshot(nq, snap => {
-      set({ news: snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsEvent)) })
+      const news = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as NewsEvent))
+        .sort((a, b) => b.date.localeCompare(a.date))
+      set({ news })
     })
 
     set({ unsub: () => { u1(); u2() } })
@@ -98,13 +98,13 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   addTrade: async (data, uid) => {
-    // ✅ FIXED: respect manual values, only auto-calc if not provided
-    const pnl    = data.profitLoss  || calcPnL(data)
-    const pips   = data.pips        || calcPips(data)
-    const rr     = data.riskReward  || calcRR(data)
-    // ✅ FIXED: respect manually selected status
-    const status = data.status      || (data.exitPrice ? tradeStatus({ ...data, profitLoss: pnl }) : 'OPEN')
-    const ref2   = await addDoc(collection(db, 'trades'), {
+    const pnl  = calcPnL(data)
+    const pips = calcPips(data)
+    const rr   = calcRR(data)
+    const status: Trade['status'] = data.exitPrice
+      ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
+      : 'OPEN'
+    const ref2 = await addDoc(collection(db, 'trades'), {
       ...data, userId: uid, profitLoss: pnl, pips, riskReward: rr, status,
       createdAt: new Date().toISOString(),
     })
@@ -119,7 +119,10 @@ export const useStore = create<Store>((set, get) => ({
     if ('exitPrice' in data || 'entryPrice' in data || 'direction' in data || 'lotSize' in data) {
       updates.profitLoss = calcPnL(merged)
       updates.pips       = calcPips(merged)
-      updates.status     = tradeStatus(merged) as Trade['status']
+      const pnl = updates.profitLoss
+      updates.status = merged.exitPrice
+        ? (pnl > 0 ? 'WIN' : pnl < 0 ? 'LOSS' : 'BREAKEVEN')
+        : 'OPEN'
     }
     await updateDoc(doc(db, 'trades', id), updates as any)
   },
