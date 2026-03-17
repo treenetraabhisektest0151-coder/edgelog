@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, ReactNode } from 'react'
+import React, { useEffect } from 'react'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -7,10 +7,11 @@ interface Props {
   onClose:  () => void
   title?:   string
   maxW?:    string
-  children: ReactNode
+  children: React.ReactNode
 }
 
-export default function Modal({ open, onClose, title, maxW = 'max-w-xl', children }: Props) {
+export default function Modal({ open, onClose, title, maxW = 'max-w-lg', children }: Props) {
+  // Close on Escape
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -21,23 +22,30 @@ export default function Modal({ open, onClose, title, maxW = 'max-w-xl', childre
   if (!open) return null
 
   return (
-    <div className="overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`modal w-full ${maxW}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Panel */}
+      <div className={`relative w-full ${maxW} bg-[#0f1117] border border-white/10 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col`}>
+        {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
-            <h2 className="font-bold text-white font-display">{title}</h2>
-            <button onClick={onClose} className="p-1.5 text-muted hover:text-white hover:bg-white/6 rounded-lg transition-colors">
-              <X size={17} />
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] shrink-0">
+            <h2 className="font-semibold text-white text-sm">{title}</h2>
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+            >
+              <X size={14} />
             </button>
           </div>
         )}
-        {!title && (
-          <button onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 text-muted hover:text-white hover:bg-white/6 rounded-lg transition-colors z-10">
-            <X size={17} />
-          </button>
-        )}
-        {children}
+        {/* Body */}
+        <div className="overflow-y-auto p-6 flex-1">
+          {children}
+        </div>
       </div>
     </div>
   )
