@@ -1,20 +1,27 @@
 'use client'
-
-import React from 'react'
+import React, { useState } from 'react'
 import { TradeFilters as Filters, TradeStrategy, TradeStatus, TradeTag } from '@/types'
 
+const EMPTY: Filters = { dateFrom: '', dateTo: '', pair: '', strategy: '', status: '', tags: [] }
+
 interface Props {
-  filters: Filters
-  onChange: (f: Partial<Filters>) => void
-  onClear: () => void
+  filters?:  Filters
+  onChange?: (f: Partial<Filters>) => void
+  onClear?:  () => void
 }
 
-const PAIRS      = ['', 'XAUUSD','EURUSD','GBPUSD','USDJPY','GBPJPY','AUDUSD','USDCAD','NAS100','US30']
-const STRATEGIES = ['', 'SMC','ICT','Scalping','Breakout','Other'] as (TradeStrategy | '')[]
-const STATUSES   = ['', 'WIN','LOSS','BREAKEVEN','OPEN'] as (TradeStatus | '')[]
+const PAIRS      = ['','XAUUSD','EURUSD','GBPUSD','USDJPY','GBPJPY','AUDUSD','USDCAD','NAS100','US30']
+const STRATEGIES = ['','SMC','ICT','Scalping','Breakout','Other'] as (TradeStrategy | '')[]
+const STATUSES   = ['','WIN','LOSS','BREAKEVEN','OPEN'] as (TradeStatus | '')[]
 const ALL_TAGS   = ['#SMC','#ICT','#Scalp','#PerfectSetup','#Mistake'] as TradeTag[]
 
-export default function TradeFilters({ filters, onChange, onClear }: Props) {
+export default function TradeFilters({ filters: extFilters, onChange: extChange, onClear: extClear }: Props) {
+  const [internal, setInternal] = useState<Filters>(EMPTY)
+
+  const filters  = extFilters ?? internal
+  const onChange = extChange  ?? ((f: Partial<Filters>) => setInternal(p => ({ ...p, ...f })))
+  const onClear  = extClear   ?? (() => setInternal(EMPTY))
+
   const inp = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#D4AA50]/50 transition-colors'
   const lbl = 'block text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1'
 
@@ -40,23 +47,19 @@ export default function TradeFilters({ filters, onChange, onClear }: Props) {
         )}
       </div>
 
-      {/* Date range */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={lbl}>From</label>
-          <input type="date" className={inp}
-            value={filters.dateFrom}
+          <input type="date" className={inp} value={filters.dateFrom}
             onChange={e => onChange({ dateFrom: e.target.value })} />
         </div>
         <div>
           <label className={lbl}>To</label>
-          <input type="date" className={inp}
-            value={filters.dateTo}
+          <input type="date" className={inp} value={filters.dateTo}
             onChange={e => onChange({ dateTo: e.target.value })} />
         </div>
       </div>
 
-      {/* Pair + Strategy + Status */}
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className={lbl}>Pair</label>
@@ -78,7 +81,6 @@ export default function TradeFilters({ filters, onChange, onClear }: Props) {
         </div>
       </div>
 
-      {/* Tags */}
       <div>
         <label className={lbl}>Tags</label>
         <div className="flex flex-wrap gap-2">
