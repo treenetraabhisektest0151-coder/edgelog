@@ -65,7 +65,10 @@ const STATUS_COLOR: Record<TradeStatus, string> = {
   OPEN:      'bg-blue-500/20 border-blue-500/40 text-blue-400',
 }
 
-interface TradeFormProps { 
+// ✅ FIXED: dark style for all native <option> elements
+const optStyle = { backgroundColor: '#0f1117', color: '#ffffff' }
+
+interface TradeFormProps {
   onSuccess?: () => void
   onClose?: () => void
 }
@@ -130,7 +133,7 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
     }
   }
 
-  const inp = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#D4AA50]/50 transition-colors'
+  const inp = 'w-full bg-[#0f1117] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#D4AA50]/50 transition-colors'
   const lbl = 'block text-[11px] font-medium text-white/40 uppercase tracking-wider mb-1'
 
   return (
@@ -149,15 +152,15 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         <div>
           <label className={lbl}>Pair *</label>
           <select className={inp} value={form.pair} onChange={e => set('pair', e.target.value)}>
-            <option value="">Select</option>
-            {PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+            <option value="" style={optStyle}>Select</option>
+            {PAIRS.map(p => <option key={p} value={p} style={optStyle}>{p}</option>)}
           </select>
         </div>
         <div>
           <label className={lbl}>Session</label>
           <select className={inp} value={form.session} onChange={e => set('session', e.target.value as TradeSession)}>
-            <option value="">Select</option>
-            {SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="" style={optStyle}>Select</option>
+            {SESSIONS.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -195,8 +198,8 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         <div>
           <label className={lbl}>Strategy</label>
           <select className={inp} value={form.strategy} onChange={e => set('strategy', e.target.value as TradeStrategy)}>
-            <option value="">Select</option>
-            {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="" style={optStyle}>Select</option>
+            {STRATEGIES.map(s => <option key={s} value={s} style={optStyle}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -235,7 +238,7 @@ export default function TradeForm({ onSuccess, onClose }: TradeFormProps) {
         <div>
           <label className={lbl}>Mistake</label>
           <select className={inp} value={form.mistakeType} onChange={e => set('mistakeType', e.target.value as MistakeType)}>
-            {MISTAKES.map(m => <option key={m} value={m}>{m}</option>)}
+            {MISTAKES.map(m => <option key={m} value={m} style={optStyle}>{m}</option>)}
           </select>
         </div>
       </div>
