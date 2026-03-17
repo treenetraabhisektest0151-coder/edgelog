@@ -11,6 +11,26 @@ import {
   Save, TrendingUp, AlertTriangle,
 } from 'lucide-react'
 
+// ✅ FIXED: Moved outside component so they don't recreate on every keystroke
+const Section = ({ title, icon: Icon, children }: {
+  title: string; icon: any; children: React.ReactNode
+}) => (
+  <div className="card p-5">
+    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
+      <Icon size={16} className="text-gold-400" />
+      <h2 className="font-semibold text-sm text-white">{title}</h2>
+    </div>
+    {children}
+  </div>
+)
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <label className="label">{label}</label>
+    {children}
+  </div>
+)
+
 export default function SettingsPage() {
   const { user, profile, refreshProfile } = useAuth()
   const { trades } = useStore()
@@ -41,25 +61,6 @@ export default function SettingsPage() {
     } catch { toast.error('Save failed') }
     finally { setBusy(false) }
   }
-
-  const Section = ({ title, icon: Icon, children }: {
-    title: string; icon: any; children: React.ReactNode
-  }) => (
-    <div className="card p-5">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06]">
-        <Icon size={16} className="text-gold-400" />
-        <h2 className="font-semibold text-sm text-white">{title}</h2>
-      </div>
-      {children}
-    </div>
-  )
-
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label className="label">{label}</label>
-      {children}
-    </div>
-  )
 
   return (
     <div className="page space-y-5">
@@ -96,7 +97,9 @@ export default function SettingsPage() {
                 </Field>
                 <Field label="Account Currency">
                   <select className="el" value={currency} onChange={e => setCurrency(e.target.value)}>
-                    {['USD','EUR','GBP','JPY','AUD','CAD'].map(c => <option key={c}>{c}</option>)}
+                    {['USD','EUR','GBP','JPY','AUD','CAD'].map(c => (
+                      <option key={c} style={{ backgroundColor: '#0f1117', color: '#fff' }}>{c}</option>
+                    ))}
                   </select>
                 </Field>
               </div>
@@ -139,8 +142,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
               {[
                 { label: 'Current Balance',   val: fmtCurrency(stats.balance),               color: 'text-white' },
-                { label: 'Total P&L',         val: `${stats.totalPnL >= 0 ? '+' : ''}${fmtCurrency(stats.totalPnL)}`,
-                  color: stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                { label: 'Total P&L',         val: `${stats.totalPnL >= 0 ? '+' : ''}${fmtCurrency(stats.totalPnL)}`, color: stats.totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400' },
                 { label: 'Total Trades',      val: stats.totalTrades,                         color: 'text-white' },
                 { label: 'Win Rate',          val: `${stats.winRate}%`,                       color: 'text-gold-400' },
                 { label: 'Profit Factor',     val: stats.profitFactor.toFixed(2),             color: 'text-blue-400' },
