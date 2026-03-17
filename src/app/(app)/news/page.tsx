@@ -135,9 +135,9 @@ export default function NewsPage() {
           <div className="card p-4 mt-3 animate-fade-up d2">
             <p className="text-[11px] uppercase tracking-wider text-muted font-semibold mb-3">Impact Guide</p>
             {[
-              { level: 'High',   desc: 'Major market movers — avoid trading or extra caution' },
-              { level: 'Medium', desc: 'Can cause volatility — reduce risk' },
-              { level: 'Low',    desc: 'Minor impact — trade normally' },
+              { level: 'High'   as NewsImpact, desc: 'Major market movers — avoid trading or extra caution' },
+              { level: 'Medium' as NewsImpact, desc: 'Can cause volatility — reduce risk' },
+              { level: 'Low'    as NewsImpact, desc: 'Minor impact — trade normally' },
             ].map(({ level, desc }) => (
               <div key={level} className="flex gap-3 mb-2 last:mb-0">
                 <span className="badge mt-0.5 shrink-0 text-[10px]" style={{
@@ -171,6 +171,7 @@ export default function NewsPage() {
                 {events.map(ev => {
                   const linked = linkedTrades(ev.id)
                   const open   = expanded === ev.id
+                  const impact = ev.impact as NewsImpact
                   return (
                     <div key={ev.id} className="border-b border-white/[0.04] last:border-0">
                       <div
@@ -179,17 +180,17 @@ export default function NewsPage() {
 
                         {/* Impact dot */}
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{
-                          background: IMPACT_COLORS[ev.impact] || '#6b7280',
-                          boxShadow:  `0 0 6px ${IMPACT_COLORS[ev.impact]}66`,
+                          background: IMPACT_COLORS[impact] || '#6b7280',
+                          boxShadow:  `0 0 6px ${IMPACT_COLORS[impact]}66`,
                         }} />
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold text-white truncate">{ev.title}</span>
                             <span className="badge text-[10px]" style={{
-                              background: IMPACT_COLORS[ev.impact] + '18',
-                              color:      IMPACT_COLORS[ev.impact],
-                              border:     `1px solid ${IMPACT_COLORS[ev.impact]}33`,
+                              background: IMPACT_COLORS[impact] + '18',
+                              color:      IMPACT_COLORS[impact],
+                              border:     `1px solid ${IMPACT_COLORS[impact]}33`,
                             }}>{ev.impact}</span>
                           </div>
                           <div className="flex items-center gap-3 mt-0.5">
